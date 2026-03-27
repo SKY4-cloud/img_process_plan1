@@ -94,8 +94,8 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser(description="Image to readmemh hex for tb_img_process")
     p.add_argument("-i", "--input", default="test1.bmp", help="Source image")
     p.add_argument("-o", "--output", default="image_in.txt", help="Output hex file")
-    p.add_argument("--width", type=int, default=720, help="Must match tb_img_process IMG_WIDTH")
-    p.add_argument("--height", type=int, default=1160, help="Must match tb_img_process IMG_HEIGHT")
+    p.add_argument("--width", type=int, default=640, help="Must match tb_img_process IMG_WIDTH")
+    p.add_argument("--height", type=int, default=480, help="Must match tb_img_process IMG_HEIGHT")
     p.add_argument(
         "--crop",
         default="",

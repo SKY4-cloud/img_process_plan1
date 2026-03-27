@@ -16,6 +16,7 @@ pip install opencv-python numpy matplotlib
 | `hex_to_img.py` | `image_out.txt`（二值后单通道）→ 灰度图 |
 | `show_box.py` | `image_out_rgb.txt`（OSD）→ 彩色图 |
 | `roi_hex_to_img.py` | `image_out_roi.txt`（模板 ROI）→ 彩色图 |
+| `set_sim_resolution.py` | 批量对齐 TB/RTL/Python 默认仿真分辨率（如 720×1160），详见 **`SET_SIM_RESOLUTION.md`** |
 
 ## 典型流程
 

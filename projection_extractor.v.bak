@@ -2,8 +2,8 @@
 
 // projection_extractor: X/Y projection + bbox; optional area/aspect gate (plate-like regions).
 module projection_extractor #(
-    parameter IMG_WIDTH  = 720,
-    parameter IMG_HEIGHT = 1160,
+    parameter IMG_WIDTH  = 640,
+    parameter IMG_HEIGHT = 480,
     parameter THRESHOLD  = 5,
     parameter MIN_AREA   = 200,
     parameter MIN_WH_NUM = 5,
@@ -128,13 +128,6 @@ module projection_extractor #(
                         scan_cnt <= scan_cnt + 1;
                     end else begin
                         state <= 3; scan_cnt <= 0;
-                        // synthesis translate_off
-                        $display("[proj] raw X: %0d..%0d  Y: %0d..%0d  w=%0d h=%0d area=%0d",
-                                 tmp_x_min, tmp_x_max, tmp_y_min, tmp_y_max,
-                                 box_w, box_h, area);
-                        $display("[proj] det_ok=%b area_ok=%b aspect_ok=%b => geom_ok=%b",
-                                 det_ok, (area >= MIN_AREA), aspect_ok, geom_ok);
-                        // synthesis translate_on
                         if (geom_ok) begin
                             out_x_min <= tmp_x_min;
                             out_x_max <= tmp_x_max;

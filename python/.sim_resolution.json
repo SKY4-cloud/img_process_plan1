@@ -1,0 +1,8 @@
+{
+  "IMG_WIDTH": 720,
+  "IMG_HEIGHT": 1160,
+  "MAX_ROI_W": 720,
+  "MAX_ROI_H": 580,
+  "V_BACK": 97,
+  "PROJ_MIN_AREA": 5437
+}
