@@ -117,10 +117,12 @@ end
 image_process_wrapper #(
     .IMG_WIDTH      ( IMG_WIDTH  ),
     .IMG_HEIGHT     ( IMG_HEIGHT ),
-    .PROJ_MIN_AREA  ( 5437 ),
-    .PROJ_THRESHOLD ( 30 ),
-    .PROJ_MAX_WH_N  ( 24 ),
-    .PROJ_MAX_WH_D  ( 2 ),
+    .PROJ_MIN_AREA   ( 5437 ),
+    .PROJ_THRESHOLD  ( 80 ),
+    .PROJ_X_THRESHOLD( 5 ),
+    .PROJ_Y_THRESHOLD( 20 ),
+    .PROJ_MAX_WH_N   ( 24 ),
+    .PROJ_MAX_WH_D   ( 2 ),
     .ROI_OUT_W      ( ROI_OUT_W ),
     .ROI_OUT_H      ( ROI_OUT_H )
 ) u_image_process_wrapper (

@@ -36,8 +36,8 @@ def auto_proj_min_area(w: int, h: int, base_w: int = 640, base_h: int = 480, bas
 
 
 def auto_proj_threshold(w: int) -> int:
-    """投影 THRESHOLD：行/列投影中计数 >= 此值才纳入 bbox。随画幅增大适当提高以滤噪。"""
-    return max(5, w // 25)
+    """投影行 THRESHOLD：每行白像素 >= 此值才纳入 y 投影。需足够大以滤除非车牌蓝色噪声。"""
+    return max(40, w // 9)
 
 
 def replace_in_text(text: str, rules: list[tuple[str, str]], path: str) -> str:
@@ -57,7 +57,8 @@ def patch_tb(content: str, w: int, h: int, v_back: int, proj_min_area: int, proj
         (r"parameter IMG_HEIGHT\s*=\s*\d+;", f"parameter IMG_HEIGHT = {h};"),
         (r"parameter V_BACK\s*=\s*\d+;", f"parameter V_BACK  = {v_back};"),
         (r"\.PROJ_MIN_AREA\s*\(\s*\d+\s*\)", f".PROJ_MIN_AREA  ( {proj_min_area} )"),
-        (r"\.PROJ_THRESHOLD\s*\(\s*\d+\s*\)", f".PROJ_THRESHOLD ( {proj_threshold} )"),
+        (r"\.PROJ_THRESHOLD\s*\(\s*\d+\s*\)", f".PROJ_THRESHOLD  ( {proj_threshold} )"),
+        (r"\.PROJ_X_THRESHOLD\s*\(\s*\d+\s*\)", f".PROJ_X_THRESHOLD( 5 )"),
     ]
     return replace_in_text(content, rules, "tb_img_process.v")
 
