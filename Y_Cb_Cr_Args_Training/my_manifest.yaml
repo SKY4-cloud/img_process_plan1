@@ -1,0 +1,124 @@
+format: full_image_bbox
+dataset_root: E:\img_process_plan1\Y_Cb_Cr_Args_Training\dataset_root
+samples:
+- image: test10.jpg
+  bbox:
+  - 273
+  - 355
+  - 193
+  - 58
+- image: test11.jpg
+  bbox:
+  - 233
+  - 420
+  - 239
+  - 107
+- image: test12.jpg
+  bbox:
+  - 350
+  - 505
+  - 274
+  - 111
+- image: test13.jpg
+  bbox:
+  - 166
+  - 351
+  - 291
+  - 95
+- image: test14.jpg
+  bbox:
+  - 252
+  - 466
+  - 193
+  - 68
+- image: test15.jpg
+  bbox:
+  - 205
+  - 596
+  - 178
+  - 65
+- image: test16.jpg
+  bbox:
+  - 242
+  - 524
+  - 221
+  - 77
+- image: test17.jpg
+  bbox:
+  - 245
+  - 476
+  - 221
+  - 76
+- image: test18.jpg
+  bbox:
+  - 254
+  - 522
+  - 186
+  - 86
+- image: test19.jpg
+  bbox:
+  - 230
+  - 515
+  - 258
+  - 82
+- image: test2.jpg
+  bbox:
+  - 246
+  - 598
+  - 259
+  - 80
+- image: test20.jpg
+  bbox:
+  - 265
+  - 439
+  - 197
+  - 105
+- image: test21.jpg
+  bbox:
+  - 238
+  - 407
+  - 251
+  - 81
+- image: test3.jpg
+  bbox:
+  - 235
+  - 646
+  - 291
+  - 91
+- image: test4.jpg
+  bbox:
+  - 224
+  - 354
+  - 274
+  - 79
+- image: test5.jpg
+  bbox:
+  - 350
+  - 488
+  - 177
+  - 59
+- image: test6.jpg
+  bbox:
+  - 207
+  - 535
+  - 270
+  - 78
+- image: test7.jpg
+  bbox:
+  - 143
+  - 507
+  - 240
+  - 79
+- image: test8.jpg
+  bbox:
+  - 216
+  - 472
+  - 271
+  - 72
+- image: test9.jpg
+  bbox:
+  - 254
+  - 506
+  - 245
+  - 80
+notes: 'bbox [x,y,w,h] in original image pixels (OpenCV: top-left, width, height).'

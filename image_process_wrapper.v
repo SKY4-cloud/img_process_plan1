@@ -25,7 +25,8 @@ module image_process_wrapper #(
     parameter ROI_OUT_W  = 64,
     parameter ROI_OUT_H  = 32,
     parameter MAX_ROI_W  = 720,
-    parameter MAX_ROI_H  = 580
+    parameter MAX_ROI_H  = 580,
+    parameter ENABLE_GRAY_WORLD_WB = 1
 )(
     input  wire        clk,
     input  wire        rst_n,
@@ -57,15 +58,40 @@ module image_process_wrapper #(
     wire [7:0]  cb_data;
     wire [7:0]  cr_data;
 
+    wire        wb_vs;
+    wire        wb_de;
+    wire [7:0]  wb_r;
+    wire [7:0]  wb_g;
+    wire [7:0]  wb_b;
+
+    gray_world_wb #(
+        .IMG_WIDTH  ( IMG_WIDTH  ),
+        .IMG_HEIGHT ( IMG_HEIGHT ),
+        .ENABLE     ( ENABLE_GRAY_WORLD_WB )
+    ) u_gray_world_wb (
+        .clk    ( clk ),
+        .rst_n  ( rst_n ),
+        .vs_in  ( vs_in ),
+        .de_in  ( de_in ),
+        .r_in   ( r_in ),
+        .g_in   ( g_in ),
+        .b_in   ( b_in ),
+        .vs_out ( wb_vs ),
+        .de_out ( wb_de ),
+        .r_out  ( wb_r ),
+        .g_out  ( wb_g ),
+        .b_out  ( wb_b )
+    );
+
     RGB2YCbCr_1 RGB2YCbCr_inst (
         .clk        (clk),
         .rst_n      (rst_n),
-        .vsync_in   (vs_in),
-        .hsync_in   (de_in),
-        .de_in      (de_in),
-        .red        (r_in[7:3]),
-        .green      (g_in[7:2]),
-        .blue       (b_in[7:3]),
+        .vsync_in   (wb_vs),
+        .hsync_in   (wb_de),
+        .de_in      (wb_de),
+        .red        (wb_r[7:3]),
+        .green      (wb_g[7:2]),
+        .blue       (wb_b[7:3]),
         .vsync_out  (y_vs),
         .hsync_out  (y_hs),
         .de_out     (y_de),

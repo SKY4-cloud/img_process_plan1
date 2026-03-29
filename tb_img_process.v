@@ -11,6 +11,10 @@ parameter ROI_OUT_H  = 32;
 parameter ROI_PIXELS = ROI_OUT_W * ROI_OUT_H;
 
 parameter SIM_FRAMES = 3;
+// post 侧：negedge out_vsync 后 frame_cnt 才 +1。若 dump 用 frame_cnt==SIM_FRAMES-1，则落笔的是
+// 「最后一帧」像素；而 [proj] 在下一帧 vs 上升后扫描的 y_ram 来自「上一帧」。
+// 故与 [proj] 对齐应 dump frame_cnt==SIM_FRAMES-2（SIM_FRAMES>=2），否则会出现行统计与 [proj] 不一致。
+localparam DUMP_POST_FRC = (SIM_FRAMES >= 2) ? (SIM_FRAMES - 2) : 0;
 
 parameter H_SYNC  = 10;
 parameter H_BACK  = 10;
@@ -119,8 +123,8 @@ image_process_wrapper #(
     .IMG_HEIGHT     ( IMG_HEIGHT ),
     .PROJ_MIN_AREA   ( 5437 ),
     .PROJ_THRESHOLD  ( 80 ),
-    .PROJ_X_THRESHOLD( 5 ),
-    .PROJ_Y_THRESHOLD( 20 ),
+    .PROJ_X_THRESHOLD( 5 ),//40
+    .PROJ_Y_THRESHOLD( 20 ),//160
     .PROJ_MAX_WH_N   ( 24 ),
     .PROJ_MAX_WH_D   ( 2 ),
     .ROI_OUT_W      ( ROI_OUT_W ),
@@ -158,7 +162,7 @@ always @(negedge out_vsync) begin
 end
 
 always @(posedge clk) begin
-    if (out_de && frame_cnt == SIM_FRAMES - 1) begin
+    if (out_de && frame_cnt == DUMP_POST_FRC) begin
         $fwrite(file_out, "%02x\n", out_data);
     end
 end

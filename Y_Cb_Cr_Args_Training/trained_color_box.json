@@ -1,0 +1,30 @@
+{
+  "wb": "gray_world",
+  "manifest": "E:\\img_process_plan1\\Y_Cb_Cr_Args_Training\\my_manifest.yaml",
+  "manifest_mode": "full_image_bbox",
+  "q_lo": 2.0,
+  "q_hi": 98.0,
+  "min_pos_coverage": 0.88,
+  "max_neg_fraction": 0.002,
+  "refine_history": {
+    "iterations": 2000,
+    "initial_neg_frac": 0.8332583333333333,
+    "initial_pos_cov": 0.8959916666666666,
+    "final_neg_frac": 0.8088166666666666,
+    "final_pos_cov": 0.8801333333333333
+  },
+  "verilog": {
+    "Y_MIN": 32,
+    "Y_MAX": 245,
+    "CB_MIN": 111,
+    "CB_MAX": 227,
+    "CR_MIN": 50,
+    "CR_MAX": 141
+  },
+  "bbox_train_options": {
+    "max_pos_per_image": 6000,
+    "max_neg_per_image": 20000,
+    "neg_mode": "blue_biased",
+    "neg_cb_min": 135
+  }
+}

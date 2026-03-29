@@ -1,0 +1,16 @@
+# 整图 + 车牌标注框：全图做 WB（训练时 --wb gray_world）后，
+# 正样本 = bbox 内像素；负样本 = bbox 外像素（子采样）。
+#
+# bbox: [x, y, w, h] — 与 OpenCV 一致：左上角列 x、行 y，宽 w、高 h（像素，整数）
+
+format: full_image_bbox
+dataset_root: ../
+samples:
+  - image: test5.jpg
+    bbox: [100, 400, 260, 80]
+  - image: test3.jpg
+    bbox: [120, 380, 240, 75]
+
+notes:
+  - image 路径相对于 dataset_root
+  - 请按实际分辨率修改 bbox；可用 prepare_dataset.py bbox-template 生成待填清单

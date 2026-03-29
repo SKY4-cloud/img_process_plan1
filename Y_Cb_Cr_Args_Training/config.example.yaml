@@ -1,0 +1,22 @@
+# 复制为 config.yaml 后按需修改（当前 train_color_box.py 以 CLI 为主，本文件作文档化默认值参考）
+
+# --- 模式 A：双文件夹 ---
+dataset_root: data
+manifest_output: dataset_manifest.yaml
+
+# --- 模式 B：整图 + bbox（见 dataset_manifest_bbox.example.yaml）---
+# format: full_image_bbox
+# samples:
+#   - image: test5.jpg
+#     bbox: [x, y, w, h]
+
+training:
+  wb: none
+  # wb: gray_world   # 方案 C：与将来 RTL 中「WB 后再 RGB2YCbCr」一致时启用
+  max_pixels_per_image: 8000
+  q_lo: 2.0
+  q_hi: 98.0
+  min_pos_coverage: 0.88
+  max_neg_fraction: 0.002
+  refine_iters: 2000
+  output_json: trained_color_box.json
