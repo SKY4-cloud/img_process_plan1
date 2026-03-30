@@ -17,13 +17,25 @@ module image_process_wrapper #(
     parameter PROJ_MIN_WH_D   = 2,
     parameter PROJ_MAX_WH_N   = 24,
     parameter PROJ_MAX_WH_D   = 2,
+    // 竖直先验：列投影与行扫描仅在 [y_first,y_last]（默认约 H/4..3H/4-1）；0=全图
+    parameter PROJ_USE_Y_BAND    = 1,
+    parameter [31:0] PROJ_Y_BAND_TOP_N = 32'd1,
+    parameter [31:0] PROJ_Y_BAND_TOP_D = 32'd4,
+    parameter [31:0] PROJ_Y_BAND_BOT_N = 32'd3,
+    parameter [31:0] PROJ_Y_BAND_BOT_D = 32'd4,
+    // 水平先验：列累加与 State2 扫描仅在 [x_first,x_last]（默认约 W/5..4W/5-1）；0=全宽
+    parameter PROJ_USE_X_BAND     = 1,
+    parameter [31:0] PROJ_X_BAND_LEFT_N  = 32'd1,
+    parameter [31:0] PROJ_X_BAND_LEFT_D  = 32'd5,
+    parameter [31:0] PROJ_X_BAND_RIGHT_N = 32'd4,
+    parameter [31:0] PROJ_X_BAND_RIGHT_D = 32'd5,
     // 列投影在首末列易漏计（笔画稀疏/腐蚀）；几何门限仍用未外扩框，仅输出外扩（左多右少，泛化）
     parameter [11:0] PROJ_BOX_PAD_XL = 12'd6,
     parameter [11:0] PROJ_BOX_PAD_XR = 12'd6,
     parameter [11:0] PROJ_BOX_PAD_YT = 12'd2,
     parameter [11:0] PROJ_BOX_PAD_YB = 12'd2,
-    parameter ROI_OUT_W  = 64,
-    parameter ROI_OUT_H  = 32,
+    parameter ROI_OUT_W  = 128,
+    parameter ROI_OUT_H  = 64,
     parameter MAX_ROI_W  = 720,
     parameter MAX_ROI_H  = 580,
     parameter ENABLE_GRAY_WORLD_WB = 1
@@ -213,7 +225,17 @@ module image_process_wrapper #(
         .BOX_PAD_XL ( PROJ_BOX_PAD_XL ),
         .BOX_PAD_XR ( PROJ_BOX_PAD_XR ),
         .BOX_PAD_YT ( PROJ_BOX_PAD_YT ),
-        .BOX_PAD_YB ( PROJ_BOX_PAD_YB )
+        .BOX_PAD_YB ( PROJ_BOX_PAD_YB ),
+        .USE_Y_BAND      ( PROJ_USE_Y_BAND ),
+        .Y_BAND_TOP_N     ( PROJ_Y_BAND_TOP_N ),
+        .Y_BAND_TOP_D     ( PROJ_Y_BAND_TOP_D ),
+        .Y_BAND_BOT_N     ( PROJ_Y_BAND_BOT_N ),
+        .Y_BAND_BOT_D     ( PROJ_Y_BAND_BOT_D ),
+        .USE_X_BAND       ( PROJ_USE_X_BAND ),
+        .X_BAND_LEFT_N    ( PROJ_X_BAND_LEFT_N ),
+        .X_BAND_LEFT_D    ( PROJ_X_BAND_LEFT_D ),
+        .X_BAND_RIGHT_N   ( PROJ_X_BAND_RIGHT_N ),
+        .X_BAND_RIGHT_D   ( PROJ_X_BAND_RIGHT_D )
     ) u_projection (
         .clk        ( clk ),
         .rst_n      ( rst_n ),
@@ -239,6 +261,17 @@ module image_process_wrapper #(
 // synthesis translate_on
 
     wire [7:0] osd_r, osd_g, osd_b;
+    wire [11:0] cam_px_cnt;
+    wire [11:0] cam_py_cnt;
+
+    video_xy_counter u_video_xy (
+        .clk   ( clk ),
+        .rst_n ( rst_n ),
+        .vs_in ( vs_in ),
+        .de_in ( de_in ),
+        .x_cnt ( cam_px_cnt ),
+        .y_cnt ( cam_py_cnt )
+    );
 
     osd_draw_box #(
         .LINE_WIDTH ( 2 )
@@ -254,6 +287,8 @@ module image_process_wrapper #(
         .box_x_max   ( box_x_max ),
         .box_y_min   ( box_y_min ),
         .box_y_max   ( box_y_max ),
+        .px_cnt      ( cam_px_cnt ),
+        .py_cnt      ( cam_py_cnt ),
         .vs_out      ( osd_vs ),
         .de_out      ( osd_de ),
         .r_out       ( osd_r ),
@@ -273,7 +308,8 @@ module image_process_wrapper #(
     ) u_roi (
         .clk            ( clk ),
         .rst_n          ( rst_n ),
-        .vs_in          ( vs_in ),
+        .px_cnt         ( cam_px_cnt ),
+        .py_cnt         ( cam_py_cnt ),
         .de_in          ( de_in ),
         .r_in           ( r_in ),
         .g_in           ( g_in ),

@@ -1,0 +1,41 @@
+﻿[*] Post frame ended: frame_cnt=0 (next will be 1) | 1 / 5 @             30250000
+[proj] raw X: 4095..0  Y: 4095..0  w=2 h=2 area=4
+[proj] det_ok=0 area_ok=0 aspect_ok=0 => geom_ok=0
+[*] Post frame ended: frame_cnt=1 (next will be 2) | 2 / 5 @          18945250000
+[proj] raw X: 149..379  Y: 514..582  w=231 h=69 area=15939
+[proj] det_ok=1 area_ok=1 aspect_ok=1 => geom_ok=1
+
+========================================
+ [Projection] Box (gated) X: 143 -> 385  Y: 512 -> 584
+========================================
+
+[*] Post frame ended: frame_cnt=2 (next will be 3) | 3 / 5 @          37860250000
+[proj] raw X: 149..379  Y: 516..582  w=231 h=67 area=15477
+[proj] det_ok=1 area_ok=1 aspect_ok=1 => geom_ok=1
+
+========================================
+ [Projection] Box (gated) X: 143 -> 385  Y: 514 -> 584
+========================================
+
+[*] Post frame ended: frame_cnt=3 (next will be 4) | 4 / 5 @          56775250000
+[proj] raw X: 149..379  Y: 516..582  w=231 h=67 area=15477
+[proj] det_ok=1 area_ok=1 aspect_ok=1 => geom_ok=1
+
+========================================
+ [Projection] Box (gated) X: 143 -> 385  Y: 514 -> 584
+========================================
+
+[*] Post frame ended: frame_cnt=4 (next will be 5) | 5 / 5 @          75690250000
+[+] Simulation finished: 5 frames processed.
+[proj] raw X: 149..379  Y: 516..582  w=231 h=67 area=15477
+[proj] det_ok=1 area_ok=1 aspect_ok=1 => geom_ok=1
+
+========================================
+ [Projection] Box (gated) X: 143 -> 385  Y: 514 -> 584
+========================================
+
+[+] Post dump: image_out_f0..f4.txt (鍦?..5, frame_cnt=0..4); image_out.txt = proj瀵归綈鍦?(frame_cnt=3)
+tb_img_process.v:212: $stop called at 75895150000 (1ps)
+** VVP Stop(0) **
+** Flushing output streams.
+** Current simulation time is 75895150000 ticks.

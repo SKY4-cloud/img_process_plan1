@@ -9,6 +9,7 @@ if not exist "image_in.txt" (
 
 iverilog -g2012 -Wall -o sim.vvp ^
   tb_img_process.v ^
+  video_xy_counter.v ^
   image_process_wrapper.v ^
   gray_world_wb.v ^
   roi_crop_scale.v ^

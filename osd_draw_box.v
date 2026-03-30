@@ -27,6 +27,10 @@ module osd_draw_box #(
     input  wire [11:0] box_y_min,
     input  wire [11:0] box_y_max,
 
+    // 与 ROI 共用的相机像素坐标（由 wrapper 内 video_xy_counter 驱动）
+    input  wire [11:0] px_cnt,
+    input  wire [11:0] py_cnt,
+
     // 3. 画好框的视频流输出 (送给 HDMI 显示)
     output reg         vs_out,
     output reg         de_out,
@@ -35,32 +39,7 @@ module osd_draw_box #(
     output reg  [7:0]  b_out
 );
 
-    // --- 1. 同步生成原始图像的实时坐标 (x_cnt, y_cnt) ---
-    reg        de_r;
-    reg        vs_r;
-    always @(posedge clk) begin
-        de_r <= de_in;
-        vs_r <= vs_in;
-    end
-    wire de_fall = de_r & ~de_in;
-    wire vs_rise = ~vs_r & vs_in;
-
-    reg [11:0] x_cnt;
-    reg [11:0] y_cnt;
-
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            x_cnt <= 0; y_cnt <= 0;
-        end else begin
-            if (vs_rise) begin
-                x_cnt <= 0; y_cnt <= 0;
-            end else if (de_in) begin
-                x_cnt <= x_cnt + 1;
-            end else if (de_fall) begin
-                x_cnt <= 0; y_cnt <= y_cnt + 1;
-            end
-        end
-    end
+    // --- 1. 像素坐标由外部 video_xy_counter 提供（与 roi_crop_scale 同源） ---
 
     // --- 2. 锁存坐标 (防止一帧画到一半时，坐标突然跳变导致框被撕裂) ---
     reg [11:0] latch_x_min, latch_x_max;
@@ -70,7 +49,7 @@ module osd_draw_box #(
         if (!rst_n) begin
             latch_x_min <= 0; latch_x_max <= 0;
             latch_y_min <= 0; latch_y_max <= 0;
-        end else if (de_in && x_cnt == 0 && y_cnt == 0) begin
+        end else if (de_in && px_cnt == 0 && py_cnt == 0) begin
             // 在每一帧画面的最开头，把探测器给的坐标抓过来锁死
             latch_x_min <= box_x_min;
             latch_x_max <= box_x_max;
@@ -80,10 +59,10 @@ module osd_draw_box #(
     end
 
     // --- 3. 核心画框逻辑 (判断当前像素是否踩在边线上) ---
-    wire is_top_edge = (y_cnt >= latch_y_min) && (y_cnt < latch_y_min + LINE_WIDTH) && (x_cnt >= latch_x_min) && (x_cnt <= latch_x_max);
-    wire is_bot_edge = (y_cnt <= latch_y_max) && (y_cnt > latch_y_max - LINE_WIDTH) && (x_cnt >= latch_x_min) && (x_cnt <= latch_x_max);
-    wire is_lef_edge = (x_cnt >= latch_x_min) && (x_cnt < latch_x_min + LINE_WIDTH) && (y_cnt >= latch_y_min) && (y_cnt <= latch_y_max);
-    wire is_rig_edge = (x_cnt <= latch_x_max) && (x_cnt > latch_x_max - LINE_WIDTH) && (y_cnt >= latch_y_min) && (y_cnt <= latch_y_max);
+    wire is_top_edge = (py_cnt >= latch_y_min) && (py_cnt < latch_y_min + LINE_WIDTH) && (px_cnt >= latch_x_min) && (px_cnt <= latch_x_max);
+    wire is_bot_edge = (py_cnt <= latch_y_max) && (py_cnt > latch_y_max - LINE_WIDTH) && (px_cnt >= latch_x_min) && (px_cnt <= latch_x_max);
+    wire is_lef_edge = (px_cnt >= latch_x_min) && (px_cnt < latch_x_min + LINE_WIDTH) && (py_cnt >= latch_y_min) && (py_cnt <= latch_y_max);
+    wire is_rig_edge = (px_cnt <= latch_x_max) && (px_cnt > latch_x_max - LINE_WIDTH) && (py_cnt >= latch_y_min) && (py_cnt <= latch_y_max);
 
     // 只要踩中任意一条边，就开启“染色”
     wire draw_en = is_top_edge | is_bot_edge | is_lef_edge | is_rig_edge;
