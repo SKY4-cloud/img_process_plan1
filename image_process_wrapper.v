@@ -8,7 +8,7 @@ module image_process_wrapper #(
     parameter CR_MIN     = 8'd55,
     parameter CR_MAX     = 8'd108,
     parameter Y_MIN      = 8'd15,
-    parameter Y_MAX      = 8'd85,
+    parameter Y_MAX      = 8'd120,//85
     parameter PROJ_MIN_AREA   = 200,
     parameter PROJ_THRESHOLD  = 80,
     parameter PROJ_X_THRESHOLD = 5,
@@ -30,7 +30,7 @@ module image_process_wrapper #(
     parameter [31:0] PROJ_X_BAND_RIGHT_N = 32'd4,
     parameter [31:0] PROJ_X_BAND_RIGHT_D = 32'd5,
     // 列投影在首末列易漏计（笔画稀疏/腐蚀）；几何门限仍用未外扩框，仅输出外扩（左多右少，泛化）
-    parameter [11:0] PROJ_BOX_PAD_XL = 12'd6,
+    parameter [11:0] PROJ_BOX_PAD_XL = 12'd26,//6
     parameter [11:0] PROJ_BOX_PAD_XR = 12'd6,
     parameter [11:0] PROJ_BOX_PAD_YT = 12'd2,
     parameter [11:0] PROJ_BOX_PAD_YB = 12'd2,

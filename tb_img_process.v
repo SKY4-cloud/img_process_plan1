@@ -130,7 +130,7 @@ image_process_wrapper #(
     .IMG_HEIGHT     ( IMG_HEIGHT ),
     .PROJ_MIN_AREA   ( 5437 ),
     .PROJ_THRESHOLD  ( 80 ),
-    .PROJ_X_THRESHOLD( 5 ),
+    .PROJ_X_THRESHOLD( 15 ),
     .PROJ_Y_THRESHOLD( 15 ),
     .PROJ_MAX_WH_N   ( 24 ),
     .PROJ_MAX_WH_D   ( 2 ),
