@@ -3,12 +3,17 @@
 module image_process_wrapper #(
     parameter IMG_WIDTH  = 720,
     parameter IMG_HEIGHT = 1160,
-    parameter CB_MIN     = 8'd150,
-    parameter CB_MAX     = 8'd255,
-    parameter CR_MIN     = 8'd55,
-    parameter CR_MAX     = 8'd108,
-    parameter Y_MIN      = 8'd15,
-    parameter Y_MAX      = 8'd120,//85
+    parameter CB_MIN     = 8'd142,
+    parameter CB_MAX     = 8'd250,
+    parameter CR_MIN     = 8'd28,
+    parameter CR_MAX     = 8'd120,
+    parameter Y_MIN      = 8'd11,
+    parameter Y_MAX      = 8'd140,
+    // 线性约束: LINE1_B*Cb + LINE1_C*Cr > LINE1_T （Cb-Cr 平面斜切，数据驱动标定）
+    // 设 LINE1_T = 0 且 LINE1_B = LINE1_C = 0 等效禁用
+    parameter LINE1_B =  0,
+    parameter LINE1_C =  0,
+    parameter LINE1_T =  0,
     parameter PROJ_MIN_AREA   = 200,
     parameter PROJ_THRESHOLD  = 80,
     parameter PROJ_X_THRESHOLD = 5,
@@ -24,7 +29,7 @@ module image_process_wrapper #(
     parameter [31:0] PROJ_Y_BAND_BOT_N = 32'd3,
     parameter [31:0] PROJ_Y_BAND_BOT_D = 32'd4,
     // 水平先验：列累加与 State2 扫描仅在 [x_first,x_last]（默认约 W/5..4W/5-1）；0=全宽
-    parameter PROJ_USE_X_BAND     = 1,
+    parameter PROJ_USE_X_BAND     = 1,//0=全宽
     parameter [31:0] PROJ_X_BAND_LEFT_N  = 32'd1,
     parameter [31:0] PROJ_X_BAND_LEFT_D  = 32'd5,
     parameter [31:0] PROJ_X_BAND_RIGHT_N = 32'd4,
@@ -38,7 +43,9 @@ module image_process_wrapper #(
     parameter ROI_OUT_H  = 64,
     parameter MAX_ROI_W  = 720,
     parameter MAX_ROI_H  = 580,
-    parameter ENABLE_GRAY_WORLD_WB = 1
+    parameter ENABLE_GRAY_WORLD_WB = 1,
+    // 1：二值后先做 3x3 中值（多数表决）再闭运算；0：直通，与加中值前行为一致
+    parameter ENABLE_BINARY_MEDIAN = 1
 )(
     input  wire        clk,
     input  wire        rst_n,
@@ -116,9 +123,16 @@ module image_process_wrapper #(
     reg         cb_bin_de;
     reg  [7:0]  cb_bin_data;
 
-    wire blue_fg = (cb_data >= CB_MIN) && (cb_data <= CB_MAX)
-                && (cr_data >= CR_MIN) && (cr_data <= CR_MAX)
-                && (y_data  >= Y_MIN)  && (y_data  <= Y_MAX);
+    wire blue_fg_box = (cb_data >= CB_MIN) && (cb_data <= CB_MAX)
+                    && (cr_data >= CR_MIN) && (cr_data <= CR_MAX)
+                    && (y_data  >= Y_MIN)  && (y_data  <= Y_MAX);
+
+    wire line1_en = (LINE1_B != 0) || (LINE1_C != 0);
+    wire signed [17:0] line1_val = $signed(LINE1_B[17:0]) * $signed({1'b0, cb_data})
+                                 + $signed(LINE1_C[17:0]) * $signed({1'b0, cr_data});
+    wire line1_ok = !line1_en || (line1_val > $signed(LINE1_T[17:0]));
+
+    wire blue_fg = blue_fg_box && line1_ok;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -132,6 +146,58 @@ module image_process_wrapper #(
         end
     end
 
+    // 二值中值（可选）：ENABLE_BINARY_MEDIAN=1 时 3x3 多数表决后再闭运算；0 时 cb_bin 直通
+    wire        path_vs;
+    wire        path_de;
+    wire [7:0]  path_data;
+
+    generate
+        if (ENABLE_BINARY_MEDIAN == 1) begin : gen_bin_median
+            wire        matrix0_de;
+            wire [7:0]  m0_11, m0_12, m0_13;
+            wire [7:0]  m0_21, m0_22, m0_23;
+            wire [7:0]  m0_31, m0_32, m0_33;
+
+            matrix_3x3 #(
+                .IMG_WIDTH  ( IMG_WIDTH  ),
+                .IMG_HEIGHT ( IMG_HEIGHT )
+            ) u_matrix_3x3_median (
+                .video_clk  ( clk ),
+                .rst_n      ( rst_n ),
+                .video_vs   ( cb_bin_vs ),
+                .video_de   ( cb_bin_de ),
+                .video_data ( cb_bin_data ),
+                .matrix_de  ( matrix0_de ),
+                .matrix11(m0_11), .matrix12(m0_12), .matrix13(m0_13),
+                .matrix21(m0_21), .matrix22(m0_22), .matrix23(m0_23),
+                .matrix31(m0_31), .matrix32(m0_32), .matrix33(m0_33)
+            );
+
+            binary_median_3x3 u_binary_median (
+                .clk       ( clk ),
+                .rst_n     ( rst_n ),
+                .matrix_vs ( cb_bin_vs ),
+                .matrix_de ( matrix0_de ),
+                .p11       ( m0_11 ),
+                .p12       ( m0_12 ),
+                .p13       ( m0_13 ),
+                .p21       ( m0_21 ),
+                .p22       ( m0_22 ),
+                .p23       ( m0_23 ),
+                .p31       ( m0_31 ),
+                .p32       ( m0_32 ),
+                .p33       ( m0_33 ),
+                .out_vs    ( path_vs ),
+                .out_de    ( path_de ),
+                .out_data  ( path_data )
+            );
+        end else begin : gen_no_bin_median
+            assign path_vs   = cb_bin_vs;
+            assign path_de   = cb_bin_de;
+            assign path_data = cb_bin_data;
+        end
+    endgenerate
+
     wire        matrix1_de;
     wire [7:0]  m1_11, m1_12, m1_13;
     wire [7:0]  m1_21, m1_22, m1_23;
@@ -143,9 +209,9 @@ module image_process_wrapper #(
     ) u_matrix_3x3_inst1 (
         .video_clk  ( clk ),
         .rst_n      ( rst_n ),
-        .video_vs   ( cb_bin_vs ),
-        .video_de   ( cb_bin_de ),
-        .video_data ( cb_bin_data ),
+        .video_vs   ( path_vs ),
+        .video_de   ( path_de ),
+        .video_data ( path_data ),
         .matrix_de  ( matrix1_de ),
         .matrix11(m1_11), .matrix12(m1_12), .matrix13(m1_13),
         .matrix21(m1_21), .matrix22(m1_22), .matrix23(m1_23),
@@ -159,7 +225,7 @@ module image_process_wrapper #(
     morphology u_morphology_dilate (
         .clk         ( clk ),
         .rst_n       ( rst_n ),
-        .matrix_vs   ( cb_bin_vs ),
+        .matrix_vs   ( path_vs ),
         .matrix_de   ( matrix1_de ),
         .p11(m1_11), .p12(m1_12), .p13(m1_13),
         .p21(m1_21), .p22(m1_22), .p23(m1_23),

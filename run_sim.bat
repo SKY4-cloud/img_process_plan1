@@ -17,6 +17,7 @@ iverilog -g2012 -Wall -o sim.vvp ^
   osd_draw_box.v ^
   matrix_3x3.v ^
   fifo_line_buf.v ^
+  binary_median_3x3.v ^
   morphology.v ^
   RGB2YCbCr_1.v
 if errorlevel 1 exit /b 1

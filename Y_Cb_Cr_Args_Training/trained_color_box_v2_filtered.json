@@ -1,0 +1,24 @@
+{
+  "wb": "gray_world",
+  "manifest": "E:\\img_process_plan1\\Y_Cb_Cr_Args_Training\\my_manifest.yaml",
+  "strategy": "sequential",
+  "blue_filter": true,
+  "coarse_step": 5,
+  "refine_radius": 6,
+  "n_pos": 60000,
+  "n_neg": 80000,
+  "metrics": {
+    "f1": 0.8941825304102811,
+    "precision": 0.9226528152035173,
+    "recall": 0.8674166666666666,
+    "neg_fraction": 0.0545375
+  },
+  "verilog": {
+    "Y_MIN": 6,
+    "Y_MAX": 226,
+    "CB_MIN": 139,
+    "CB_MAX": 250,
+    "CR_MIN": 28,
+    "CR_MAX": 141
+  }
+}

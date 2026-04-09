@@ -1,8 +1,15 @@
 `timescale 1ns / 1ps
 
-// 灰世界白平衡：整帧统计 R/G/B 均值，使三者趋近同一灰均值；增益 Q8（256=1.0），应用于乘法后 >>8。
-// 在 vsync 下降沿锁存上一帧 sum、更新增益（ENABLE=1）、并清零累加器（与 ENABLE 无关，避免累加溢出）。
-// 输出相对输入 1clk 对齐延迟（vs_out/de_out 与 r/g/b_out 同步）。
+// Gray-world white balance — synthesizable, real-time capable.
+//
+// Per-frame R/G/B sums are accumulated during active video (de_in high).
+// At the vsync falling edge a small FSM computes channel means (reciprocal
+// multiplication — no hardware divider), the common gray target (÷3
+// approximation), and per-channel Q8 gains via a 17-cycle restoring
+// divider.  Gains from frame N apply to frame N+1 (standard 1-frame
+// latency).  Total FSM runtime ≈ 60 clocks — well within vertical blanking.
+//
+// Output latency: 1 clock (registered vs/de/rgb).
 module gray_world_wb #(
     parameter IMG_WIDTH  = 720,
     parameter IMG_HEIGHT = 1160,
@@ -26,67 +33,29 @@ module gray_world_wb #(
     output reg  [7:0]  b_out
 );
 
-    localparam integer PIX_TOTAL = IMG_WIDTH * IMG_HEIGHT;
+    localparam [31:0] PIX_TOTAL = IMG_WIDTH * IMG_HEIGHT;
 
-    reg        vs_d;
-    wire       vs_negedge = vs_d & ~vs_in;
+    // mean ≈ (sum × RECIP_PIX) >> RSHIFT   (ceiling reciprocal)
+    localparam RSHIFT = 38;
+    localparam [31:0] RECIP_PIX =
+        ((64'd1 << RSHIFT) + PIX_TOTAL - 1) / PIX_TOTAL;
 
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n)
-            vs_d <= 1'b0;
-        else
-            vs_d <= vs_in;
-    end
+    /* -------- vsync falling edge -------- */
+    reg vs_d;
+    wire vs_fall = vs_d & ~vs_in;
 
+    always @(posedge clk or negedge rst_n)
+        if (!rst_n) vs_d <= 1'b0;
+        else        vs_d <= vs_in;
+
+    /* -------- pixel accumulators -------- */
     reg [31:0] sum_r, sum_g, sum_b;
-    reg [15:0] gain_r, gain_g, gain_b;
-
-    function automatic [15:0] clamp_gain(input [31:0] raw);
-        begin
-            if (raw < {22'd0, GAIN_MIN})
-                clamp_gain = {22'd0, GAIN_MIN};
-            else if (raw > {22'd0, GAIN_MAX})
-                clamp_gain = {22'd0, GAIN_MAX};
-            else
-                clamp_gain = raw[15:0];
-        end
-    endfunction
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            sum_r   <= 32'd0;
-            sum_g   <= 32'd0;
-            sum_b   <= 32'd0;
-            gain_r  <= 16'd256;
-            gain_g  <= 16'd256;
-            gain_b  <= 16'd256;
-        end else if (vs_negedge) begin
-            if (ENABLE && PIX_TOTAL > 0) begin
-                integer mr, mg, mb, mavg;
-                integer gr, gg, gb;
-                mr = sum_r / PIX_TOTAL;
-                mg = sum_g / PIX_TOTAL;
-                mb = sum_b / PIX_TOTAL;
-                mavg = (mr + mg + mb) / 3;
-                if (mr > 0)
-                    gr = (mavg * 256) / mr;
-                else
-                    gr = 256;
-                if (mg > 0)
-                    gg = (mavg * 256) / mg;
-                else
-                    gg = 256;
-                if (mb > 0)
-                    gb = (mavg * 256) / mb;
-                else
-                    gb = 256;
-                gain_r <= clamp_gain(gr);
-                gain_g <= clamp_gain(gg);
-                gain_b <= clamp_gain(gb);
-            end
-            sum_r <= 32'd0;
-            sum_g <= 32'd0;
-            sum_b <= 32'd0;
+            sum_r <= 0;  sum_g <= 0;  sum_b <= 0;
+        end else if (vs_fall) begin
+            sum_r <= 0;  sum_g <= 0;  sum_b <= 0;
         end else if (de_in) begin
             sum_r <= sum_r + {24'd0, r_in};
             sum_g <= sum_g + {24'd0, g_in};
@@ -94,23 +63,150 @@ module gray_world_wb #(
         end
     end
 
-    wire [23:0] pr = r_in * gain_r;
-    wire [23:0] pg = g_in * gain_g;
-    wire [23:0] pb = b_in * gain_b;
-    wire [9:0]  rr = pr[23:8];
-    wire [9:0]  rg = pg[23:8];
-    wire [9:0]  rb = pb[23:8];
-    wire [7:0]  r_clip = rr > 10'd255 ? 8'd255 : rr[7:0];
-    wire [7:0]  g_clip = rg > 10'd255 ? 8'd255 : rg[7:0];
-    wire [7:0]  b_clip = rb > 10'd255 ? 8'd255 : rb[7:0];
+    /* -------- gain registers (Q8: 256 = ×1.0) -------- */
+    reg [9:0] gain_r, gain_g, gain_b;
+
+    /* -------- FSM states -------- */
+    localparam [2:0]
+        S_IDLE = 3'd0,
+        S_MEAN = 3'd1,     // reciprocal multiply → means
+        S_AVG  = 3'd2,     // ÷3 → mavg, prepare numerator
+        S_DSET = 3'd3,     // divider setup (per channel)
+        S_DRUN = 3'd4,     // restoring-division iteration
+        S_DOUT = 3'd5;     // clamp & store gain
+
+    reg [2:0]  st;
+    reg [1:0]  ch;          // 0 = R, 1 = G, 2 = B
+    reg [4:0]  dcnt;        // iteration counter 0..16
+
+    reg [31:0] ls_r, ls_g, ls_b;       // latched sums
+    reg [7:0]  mr, mg, mb;             // channel means
+    reg [16:0] num;                     // mavg << 8 (gain numerator)
+
+    // restoring divider registers
+    reg [8:0]  drem;        // remainder (9-bit to hold shifted value)
+    reg [16:0] dquo;        // quotient (shift-in from LSB)
+    reg [16:0] dnum;        // numerator shift register (MSB out)
+    reg [7:0]  dden;        // denominator
+
+    /* -------- combinational helpers -------- */
+
+    // mean = (latched_sum × RECIP_PIX) >> RSHIFT
+    wire [63:0] pm_r = ls_r * RECIP_PIX;
+    wire [63:0] pm_g = ls_g * RECIP_PIX;
+    wire [63:0] pm_b = ls_b * RECIP_PIX;
+
+    // ÷3 approximation: × 21846 >> 16  (21846/65536 ≈ 0.33331, error < 0.002%)
+    wire [9:0]  sum3   = {2'd0, mr} + {2'd0, mg} + {2'd0, mb};
+    wire [25:0] sum3_x = sum3 * 16'd21846;
+    wire [7:0]  mavg   = sum3_x[23:16];
+
+    // divider: trial = {rem[7:0], numerator_msb}
+    wire [8:0]  dtrial = {drem[7:0], dnum[16]};
+    wire        dtge   = dtrial >= {1'b0, dden};
+
+    // channel mean mux
+    wire [7:0]  ch_m = (ch == 2'd0) ? mr : (ch == 2'd1) ? mg : mb;
+
+    // gain clamp
+    wire [9:0]  clamped = (dquo < {7'd0, GAIN_MIN}) ? GAIN_MIN :
+                          (dquo > {7'd0, GAIN_MAX}) ? GAIN_MAX :
+                                                      dquo[9:0];
+
+    /* -------- FSM -------- */
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            st     <= S_IDLE;
+            ch     <= 0;
+            dcnt   <= 0;
+            gain_r <= 10'd256;
+            gain_g <= 10'd256;
+            gain_b <= 10'd256;
+            ls_r   <= 0;  ls_g <= 0;  ls_b <= 0;
+            mr     <= 0;  mg   <= 0;  mb   <= 0;
+            num    <= 0;
+            drem   <= 0;  dquo <= 0;
+            dnum   <= 0;  dden <= 0;
+        end else if (ENABLE) begin
+            case (st)
+
+            S_IDLE:
+                if (vs_fall) begin
+                    ls_r <= sum_r;
+                    ls_g <= sum_g;
+                    ls_b <= sum_b;
+                    st   <= S_MEAN;
+                end
+
+            S_MEAN: begin
+                mr <= pm_r[RSHIFT +: 8];
+                mg <= pm_g[RSHIFT +: 8];
+                mb <= pm_b[RSHIFT +: 8];
+                st <= S_AVG;
+            end
+
+            S_AVG: begin
+                num <= {1'b0, mavg, 8'd0};
+                ch  <= 0;
+                st  <= S_DSET;
+            end
+
+            S_DSET: begin
+                dnum <= num;
+                dden <= ch_m;
+                drem <= 0;
+                dquo <= 0;
+                dcnt <= 0;
+                if (ch_m == 0) begin
+                    dquo <= 17'd256;
+                    st   <= S_DOUT;
+                end else
+                    st <= S_DRUN;
+            end
+
+            S_DRUN: begin
+                if (dtge) begin
+                    drem <= dtrial - {1'b0, dden};
+                    dquo <= {dquo[15:0], 1'b1};
+                end else begin
+                    drem <= dtrial;
+                    dquo <= {dquo[15:0], 1'b0};
+                end
+                dnum <= {dnum[15:0], 1'b0};
+                dcnt <= dcnt + 5'd1;
+                if (dcnt == 5'd16)
+                    st <= S_DOUT;
+            end
+
+            S_DOUT: begin
+                case (ch)
+                    2'd0:    gain_r <= clamped;
+                    2'd1:    gain_g <= clamped;
+                    default: gain_b <= clamped;
+                endcase
+                if (ch == 2'd2)
+                    st <= S_IDLE;
+                else begin
+                    ch <= ch + 2'd1;
+                    st <= S_DSET;
+                end
+            end
+
+            default: st <= S_IDLE;
+
+            endcase
+        end
+    end
+
+    /* -------- gain application -------- */
+    wire [17:0] pr = r_in * gain_r;
+    wire [17:0] pg = g_in * gain_g;
+    wire [17:0] pb = b_in * gain_b;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            vs_out <= 1'b0;
-            de_out <= 1'b0;
-            r_out  <= 8'd0;
-            g_out  <= 8'd0;
-            b_out  <= 8'd0;
+            vs_out <= 0;  de_out <= 0;
+            r_out  <= 0;  g_out  <= 0;  b_out <= 0;
         end else begin
             vs_out <= vs_in;
             de_out <= de_in;
@@ -119,9 +215,9 @@ module gray_world_wb #(
                 g_out <= g_in;
                 b_out <= b_in;
             end else begin
-                r_out <= r_clip;
-                g_out <= g_clip;
-                b_out <= b_clip;
+                r_out <= |pr[17:16] ? 8'd255 : pr[15:8];
+                g_out <= |pg[17:16] ? 8'd255 : pg[15:8];
+                b_out <= |pb[17:16] ? 8'd255 : pb[15:8];
             end
         end
     end

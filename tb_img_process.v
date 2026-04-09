@@ -10,6 +10,8 @@ parameter PIXEL_NUM  = IMG_WIDTH * IMG_HEIGHT;
 parameter ROI_OUT_W  = 128;
 parameter ROI_OUT_H  = 64;
 parameter ROI_PIXELS = ROI_OUT_W * ROI_OUT_H;
+// 与 image_process_wrapper.ENABLE_BINARY_MEDIAN 一致；0 关闭二值 3x3 中值
+parameter ENABLE_BINARY_MEDIAN = 1;
 
 parameter SIM_FRAMES = 5;
 // post 侧：negedge out_vsync 后 frame_cnt 才 +1。若 dump 用 frame_cnt==SIM_FRAMES-1，则落笔的是
@@ -135,7 +137,8 @@ image_process_wrapper #(
     .PROJ_MAX_WH_N   ( 24 ),
     .PROJ_MAX_WH_D   ( 2 ),
     .ROI_OUT_W      ( ROI_OUT_W ),
-    .ROI_OUT_H      ( ROI_OUT_H )
+    .ROI_OUT_H      ( ROI_OUT_H ),
+    .ENABLE_BINARY_MEDIAN ( ENABLE_BINARY_MEDIAN )
 ) u_image_process_wrapper (
     .clk        ( clk ),
     .rst_n      ( rst_n ),
